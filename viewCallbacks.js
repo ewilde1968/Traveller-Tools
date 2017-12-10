@@ -25,7 +25,9 @@ exports.InitializeViewCallbacks = function (app) {
     app.post('/user/:userid', user.ensureSignedIn, user.update);
 
     result = new Object({
-        indexCF:pug.compileFile('./views/index.pug', loadOptions)
+        indexCF:pug.compileFile('./views/index.pug', loadOptions),
+        userCF:pug.compileFile('./views/user.pug', loadOptions),
+        createAccountCF:pug.compileFile('./views/createaccount.pug', loadOptions)
     });
 
     return result;

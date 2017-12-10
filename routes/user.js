@@ -20,7 +20,9 @@ exports.ensureSignedIn = function(req, res, next) {
 
 //app.get('/user/new', user.newUser);
 exports.newUser = function(req, res, next) {
-    res.render( 'createaccount', {err:false});
+    res.send( req.app.locals.viewCallbacks.createAccountCF(
+        {err:false}
+    ));
 };
 
 //app.post('/user/new', user.createUser);
@@ -36,7 +38,9 @@ exports.createUser = function(req, res, next) {
             res.redirect( '/user/' + req.session.userId);
         } else {
             // duplicate user or invalid password
-            res.render( 'createaccount', {err:true});
+            res.send( req.app.locals.viewCallbacks.createAccountCF(
+                {err:true}
+            ));
         }
     });
 };
@@ -50,6 +54,8 @@ exports.update = function(req, res, next) {
 //app.get('/user/:userid', user.home);
 exports.home = function(req, res, next) {
     Account.findById( req.session.userId, function( err, acct) {
-        res.render('user', {account:acct});
+        res.send( req.app.locals.viewCallbacks.userCF(
+            {account:acct}
+        ));
     });
 };
