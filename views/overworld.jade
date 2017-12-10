@@ -1,0 +1,232 @@
+extends layout
+
+block content
+  script.
+    var map = {tile:new Array(),
+               width:#{game.maps[0].width},
+               height:#{game.maps[0].height}},
+        gameState = '#{game.state}';
+
+  #overworld
+    each tile, i in game.maps[0].tiles
+      - var x = (i%game.maps[0].width)*16;
+      - var y = Math.floor(i/game.maps[0].width)*16;
+      - var s = 'left:' + x + 'px;top:' + y + 'px;background-position:' + tile.spriteIndex;
+      img.mapTile(style=s)
+      if tile.encounter
+        script.
+          var tileObj = {terrain:#{tile.terrain},
+                         enchanted:#{tile.enchanted},
+                         paths:#{tile.paths},
+                         encounter:'#{tile.encounter}',
+                         spriteIndex:'#{tile.spriteIndex}'
+                         };
+      else
+        script.
+          var tileObj = {terrain:#{tile.terrain},
+                         enchanted:#{tile.enchanted},
+                         paths:#{tile.paths},
+                         spriteIndex:'#{tile.spriteIndex}'
+                         };
+      script.
+        map.tile.push(tileObj);
+  #textOverlay
+    fieldset
+
+  script.
+    $(document).ready( function() {
+        var populateForm = function(stateData) {
+            var fs = $('#textOverlay fieldset');
+            fs.empty();
+          
+            switch( gameState) {
+                case "placecharacters":
+                    var selectElem = $('<select></select>').attr('name','startlocation')
+                                                           .attr('id','startlocation');
+
+                    if( !!stateData === false || !!stateData.homes === false)
+                        throw("invalid state data, populateform placecharacters");
+                        
+                    stateData.homes.forEach( function(h) {
+                        selectElem.append( $('<option></option>').val(h).text(h));
+                    });
+                    
+                    fs.append( $('<label></label>').attr('for','startlocation').text('Choose starting location'))
+                        .append( selectElem)
+                        .append( $('<button></button>').text('Go').click( function() {
+                            emit({startlocation:$('#startlocation').val()});
+                        }));
+                    break;
+                    
+                case "birdsong":
+                    stateData.characters.forEach( function(c) {
+                        var innerDiv = $('<div></div>').attr('id',c.name);
+                        innerDiv.append( $('<p></p>').text(c.name));
+                        
+                        if(stateData.characters.length > 1) {
+                            innerDiv.append( $('<label></label>').attr('for','follow').text('Follow'))
+                                    .append( followSelect(stateData.characters, c));
+                        }
+                        dontFollowOptions( innerDiv,c,stateData);
+                        fs.append( innerDiv);
+                    });
+                    
+                    fs.append( $('<button></button>').text('Go').click( function() {
+                        var emitData = {};
+                        stateData.characters.forEach( function(c) {
+                            var innerDiv = $('#' + c.name);
+                            emitData[c.name] = {hidden:$('#' + c.name + ' input[name="hidden"]').is(':checked'),
+                                                activesearch:$('#' + c.name + ' input[name="activesearch"]').is(':checked'),
+                                                latestart:$('#' + c.name + ' input[name="latestart"]').is(':checked'),
+                                                destination:destinationPath(c)
+                                                };
+                        });
+                        emit(emitData);
+                    }));
+                    break;
+                    
+                default:
+                    break;
+            }
+        };
+        
+        var dontFollowOptions = function(parentDiv,c,stateData) {
+            var dontFollowDiv = $('<div></div>').addClass('dontFollow');
+            dontFollowDiv.append( $('<p></p>').addClass('instructions').text('Whence do you travel and how so?'))
+                         .append( $('<button></button>').addClass('anotherscreenbutton').text('Magic'))
+                         .append( $('<label></label>').attr('for','hidden').text('Stay Hidden'))
+                         .append( $('<input></input>').attr('type','checkbox').attr('name','hidden'))
+                         .append( $('<label></label>').attr('for','activesearch').text('Active Search'))
+                         .append( $('<input></input>').attr('type','checkbox').attr('name','activesearch'))
+                         .append( $('<label></label>').attr('for','latestart').text('Late Start'))
+                         .append( $('<input></input>').attr('type','checkbox').attr('name','latestart'));
+            destinationMap(dontFollowDiv,c,stateData.tileIndex,4);
+            
+            parentDiv.append(dontFollowDiv);
+        };
+        
+        var followSelect = function(characters, c) {
+            var sel = $('<select></select>').attr('name','follow')
+                                            .change( c, function(e) {
+                if( sel.val() != 'nobody')
+                    $('#' + e.data.name + ' .dontFollow').css('display','none');
+                else
+                    $('#' + e.data.name + ' .dontFollow').css('display','inline');
+            });
+            characters.forEach( function(character) {
+                if( character != c)
+                    sel.append( $('<option></option>').val(character.name).text(character.name));
+            });
+            sel.append( $('<option></option>').val('nobody').text('nobody').prop('selected',true));
+            
+            return sel;
+        };
+        
+        var searchDestinationMap = function(results,index) {
+            var found = false;
+            results.forEach( function(e,i,a) {
+                if( !!e && !found) {
+                    e.forEach( function(val) {
+                        if( val.index == index)
+                            found = true;
+                    });
+                }
+            });
+            
+            return found;
+        };
+        
+        var makeAttainable = function( moves, index, from, results, c) {
+            if( !!results[moves] === false)
+                results[moves] = new Array();
+            results[moves].push({index:index,from:from});
+            
+            if( moves > 0) {
+                if(map.tile[index].paths&1 && !searchDestinationMap(results,index+1) && (index+1)%map.width!=0)
+                    makeAttainable( moves - 1, index + 1, index, results, c);
+                if(map.tile[index].paths&2 && !searchDestinationMap(results,index-map.width) && Math.floor(index/map.width)>0)
+                    makeAttainable( moves - 1, index - map.width, index, results, c);
+                if(map.tile[index].paths&4 && !searchDestinationMap(results,index-1) && (index%map.width!=0))
+                    makeAttainable( moves - 1, index - 1, index, results, c);
+                if(map.tile[index].paths&8 && !searchDestinationMap(results,index+map.width) && Math.floor(index/map.width)<(map.height-1))
+                    makeAttainable( moves - 1, index + map.width, index, results, c);
+            }
+        };
+        
+        var destinationMap = function(parentDiv,c,tileIndex,maxMove) {
+            var row = Math.floor(tileIndex/map.width);
+            var yOffset = (row > maxMove ? row - maxMove : 0) * 16;
+            var col = tileIndex%map.width;
+            var xOffset = (col > maxMove ? col - maxMove : 0) * 16;
+            
+            var results = new Array(maxMove+1);
+            makeAttainable( maxMove, tileIndex, tileIndex, results, c);
+
+            var mapDiv = $('<div></div>').addClass('destinationMap');
+            results.forEach( function(equidistantA) {
+                if( !!equidistantA) {
+                    equidistantA.forEach( function(o) {
+                        var y = (Math.floor(o.index/map.width)*16 - yOffset) + 'px';
+                        var x = ((o.index%map.width)*16 - xOffset) + 'px';
+                        var im = $('<img></img>').addClass('mapTile')
+                                                 .css('left',x)
+                                                 .css('top',y)
+                                                 .css('background-position',map.tile[o.index].spriteIndex)
+                                                 .data('index',o.index)
+                                                 .data('from',o.from);
+                        im.addClass('attainableTile');
+                        if( o.index == o.from)
+                            im.addClass('selfTile');
+                            
+                        im.click( o.index, function() {
+                            $('.destinationTile').removeClass('destinationTile');
+                            $(this).addClass('destinationTile');
+                        });
+                        mapDiv.append(im);
+                    });
+                }
+            });
+            
+            parentDiv.append(mapDiv);
+        };
+        
+        var destinationPath = function(c) {
+            var mDiv = $('#' + c.name + ' .destinationMap');
+            var dt = mDiv.children('.destinationTile');
+            var allTiles = mDiv.children('.attainableTile');
+            if( !!dt) {
+                var result = new Array();
+                result.unshift( dt.data('index'));
+                var from = dt.data('from');
+                while( dt.data('index') != from) {
+                    result.unshift( from);
+                    dt = allTiles.filter( function() {
+                        var val = $(this).data('index');
+                        var rval = val === from;
+                        return rval;
+                    });
+                    from = dt.data('from');
+                }
+                
+                return result;
+            }
+            
+            return null;
+        };
+
+        var emit = function(emitData) {
+            emitData.gameid = '#{game.id}';
+            socket.emit(gameState, emitData, function(data) {
+                if( !!data.state)
+                    gameState = data.state;
+                
+                populateForm(data);
+            });
+        };
+        
+        //var socket = io.connect('http://10.0.1.10');
+        var socket = io.connect('http://localhost');
+        socket.on('connected', function() {
+            emit({});
+        });
+    });
