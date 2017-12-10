@@ -14,10 +14,6 @@ const app = express();
 // all environments
 app.set('port', process.env.PORT || 3000);
 app.set('case sensitive routing', true);
-app.use(express.favicon());
-app.use(express.logger('dev'));
-app.use(express.bodyParser());
-app.use(express.methodOverride());
 app.use(express.cookieParser('travellerToolsCookieSecret'));
 app.use(express.session({ secret: 'travellerToolsSessionSecret'}));
 app.use(app.router);
@@ -45,6 +41,7 @@ var server = http.createServer(app, function(request,responts) {
         response.statusCode = 400;
         response.end();
     }).on('data', (chunk) => {
+        console.log( 'data chunk: ' + chunk);
         body.push(chunk);
     }).on('end', () => {
         body = Buffer.concat(body).toString();

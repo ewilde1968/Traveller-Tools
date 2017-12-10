@@ -9,14 +9,32 @@ block content
       fieldset
         p
             label(for="username") Email
-            input( name="username", type="email", required="required", size="22", placeholder="username@domain.com")
+            input(
+                name="username"
+                type="email"
+                required="required"
+                size="22"
+                placeholder="username@domain.com"
+            )
         p#errorP(class="errorString notShown") That username is already taken
         p
           label(for="password") Password
-          input( name="password", type="password", size="22", required="required", placeholder="password")
+          input(
+            name="password"
+            type="password"
+            size="22"
+            required="required"
+            placeholder="password"
+          )
         p
           label(for="verifyPassword") Verify Password
-          input( name="verifyPassword", type="password", size="22", required="required", placeholder="password")
+          input(
+            name="verifyPassword"
+            type="password"
+            size="22"
+            required="required"
+            placeholder="password"
+          )
         p
           button.rightForm Submit
 
