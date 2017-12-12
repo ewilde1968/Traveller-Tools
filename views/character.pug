@@ -1,27 +1,42 @@
 extends layout
 
 block content
-  div // name block
-    p character.name
-    p character.title
-    p character.age age
-  div // stats block
-    tr
-      th Stat
-      th Value
-      th Mod
-    tr
-        // each stat
-  div // skills block
-    tr
-      th Skill
-      th Stat
-      th Rank
-      th Total
-    tr
-        // each skill
-  div // misc (rank, cr, licenses) block
-    p Rank
-    p CR
-    p Licenses
-  div // history block
+  div#characterHeader
+    table
+      tr
+        th Name
+        td character.name
+      tr
+        th Title
+        td character.title
+      tr
+        th Age
+        td character.age
+  div#characterStats
+    table
+      tr
+        th Stat
+        th Value
+        each stat in character.stats
+          tr
+            th= stat.name
+            td= stat.value
+  div#characterSkills
+    table
+      tr
+        th Skill
+        th Stat
+        th Rank
+        th Total
+  div#characterMisc
+    table
+      tr
+        th Credits
+        td 0
+      tr
+        th Rank
+        td 'loser'
+      tr
+        th Licenses
+        td 'Imperium Personal Weapons'
+  div#characterHistory

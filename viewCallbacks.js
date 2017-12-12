@@ -10,7 +10,7 @@ const routes = require('./routes'),
 const loadOptions = {
     /* debug only
     */
-    debug:true,
+    debug:false,
     /* debug only
     */
     doctype:'html'
