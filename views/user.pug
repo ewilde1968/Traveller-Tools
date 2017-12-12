@@ -1,17 +1,14 @@
 extends layout
 
 block content
-  newGameURL = '/user/' + account._id + '/game/new'
   .navMenu
-    a(href=newGameURL)
-      button.rightNavButton New Game
-    a(href="/")
-      button.leftNavButton Cancel
+    a(href='/character/new/'+userId)
+      button.rightNavButton Create Character
   .multilist
     ul.listgroup
 
   script.
     $(document).ready( function() {
-        // add each saved game to multilist here
+        // add each saved character to multilist here
     });
     

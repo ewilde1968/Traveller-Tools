@@ -5,11 +5,12 @@ block content
     p Sign Up
     a(href="/")
       button.leftNavButton Cancel
-    form( action="/user/new", method="POST")
+    form( action="/user/new" method="post")
       fieldset
         p
-            label(for="username") Email
+            label(for="POST-username") Email
             input(
+                id="POST-username"
                 name="username"
                 type="email"
                 required="required"
@@ -18,8 +19,9 @@ block content
             )
         p#errorP(class="errorString notShown") That username is already taken
         p
-          label(for="password") Password
+          label(for="POST-password") Password
           input(
+            id="POST-password"
             name="password"
             type="password"
             size="22"
@@ -27,8 +29,9 @@ block content
             placeholder="password"
           )
         p
-          label(for="verifyPassword") Verify Password
+          label(for="POST-verifyPassword") Verify Password
           input(
+            id="POST-verifyPassword"
             name="verifyPassword"
             type="password"
             size="22"
@@ -47,7 +50,7 @@ block content
             // validate form
             var good = true;
 
-            var obj = $('input[name="password"]');
+            var obj = $('input[id="POST-password"]');
             var x = obj.val();
             if( !x || x == "") {
                 good = false;
@@ -55,7 +58,7 @@ block content
             } else
                 obj.removeClass( 'inputError');
 
-            obj = $('input[name="verifyPassword"]');
+            obj = $('input[id="POST-verifyPassword"]');
             if( obj.val() != x ) {
                 good = false;
                 obj.addClass( 'inputError');

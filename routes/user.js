@@ -14,13 +14,14 @@ exports.ensureSignedIn = function(req, res, next) {
     // make sure the user is signed in and, if not, redirect to login page
     if( req.session.userId != null && req.session.userId == req.params.userid)
         next(); // TODO: use something more secure to ensure signin legitimate
-    else
+    else {
         res.redirect( '/');
+    }
 };
 
 //app.get('/user/new', user.newUser);
 exports.newUser = function(req, res, next) {
-    res.send( req.app.locals.viewCallbacks.createAccountCF(
+    res.send( req.app.locals.viewCallbacks.createAccount(
         {err:false}
     ));
 };
@@ -38,7 +39,7 @@ exports.createUser = function(req, res, next) {
             res.redirect( '/user/' + req.session.userId);
         } else {
             // duplicate user or invalid password
-            res.send( req.app.locals.viewCallbacks.createAccountCF(
+            res.send( req.app.locals.viewCallbacks.createAccount(
                 {err:true}
             ));
         }
@@ -54,8 +55,8 @@ exports.update = function(req, res, next) {
 //app.get('/user/:userid', user.home);
 exports.home = function(req, res, next) {
     Account.findById( req.session.userId, function( err, acct) {
-        res.send( req.app.locals.viewCallbacks.userCF(
-            {account:acct}
+        res.send( req.app.locals.viewCallbacks.user(
+            {userId:req.session.userId}
         ));
     });
 };

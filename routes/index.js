@@ -1,4 +1,3 @@
-
 /*
  * GET home page.
  */
@@ -9,7 +8,7 @@ const Account = require('./../model/account'),
 //app.get('/', routes.index);
 exports.index = function(req, res){
     // show title screen and require sign in to do anything else
-    res.send( req.app.locals.viewCallbacks.indexCF(
+    res.send( req.app.locals.viewCallbacks.index(
         { err:false, defaultUsername:'' }
     ));
 };
@@ -24,7 +23,7 @@ exports.signin = function( req, res, next) {
             res.redirect( '/user/' + req.session.userId);
         } else {
             // incorrect username or password
-            res.send( req.app.locals.viewCallbacks.indexCF(
+            res.send( req.app.locals.viewCallbacks.index(
                 { err:true, defaultUsername:req.body.username }
             ));
         }
