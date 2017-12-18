@@ -26,8 +26,8 @@ exports.InitializeViewCallbacks = function (app) {
     app.post('/user/:userid', user.ensureSignedIn, user.update);
     app.get('/character/', user.ensureSignedIn, character.list);
     app.get('/character/new/:userid', user.ensureSignedIn, character.newCharacter);
-    app.get('/character/:characterid', user.ensureSignedIn, character.list);
-    app.post('/character/:characterid', user.ensureSignedIn, character.updateCharacter);
+    app.get('/character/:characterid', character.get);
+    app.post('/character/:characterid', character.updateCharacter);
 
     result = new Object({
         index:pug.compileFile('./views/index.pug', loadOptions),

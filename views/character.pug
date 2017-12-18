@@ -1,6 +1,9 @@
 extends layout
 
 block content
+  - var term = character.enrolled ? character.enrolled[0] : undefined;
+  - var inService = (term && term.service && !term.musteredOut) ? term.service.name : undefined;
+
   div#characterHeader
     table
       tr
@@ -17,26 +20,94 @@ block content
       tr
         th Stat
         th Value
+        th Modifier
         each stat in character.stats
-          tr
-            th= stat.name
-            td= stat.value
+          if stat
+            tr
+              th= stat.name
+              td= stat.value
+              td= stat.modifier
   div#characterSkills
-    table
-      tr
-        th Skill
-        th Stat
-        th Rank
-        th Total
-  div#characterMisc
-    table
-      tr
-        th Credits
-        td 0
-      tr
-        th Rank
-        td 'loser'
-      tr
-        th Licenses
-        td 'Imperium Personal Weapons'
-  div#characterHistory
+    if character.skills && character.skills.length > 0
+      table
+        tr
+          th Skill
+          th Stat
+          th Rank
+          th Total
+        each skill in character.skills
+          tr
+            th= skill.name
+            td= skill.stat ? skill.stat.name : ''
+            td= skill.rank
+            td= skill.modifier
+      div#enrollment
+        form( action=('/character/'+character.id) method='post')
+          if inService
+            p= 'Currently enrolled in '+inService+' at the '+(term.commissioned?'commissioned officer ':'')+'rank of '+term.rank + '.'
+          if inService && !term.completed
+            if !term.skills || term.skills.length == 0 || term.promoted
+              p Please choose a skill type.
+              select#tskillSelect(name='termskill')
+                option(value='Personal Development') Personal Development
+                if term.service.higherEd
+                  option(value='Higher Education') Higher Education
+                if term.service.officer && term.commissioned
+                  option(value='Officer') Officer
+                option(value='Service Skills') Service Skills
+                option(value= term.service.name )= term.service.name
+              button(disabled) Submit
+            else if !term.commissioned && term.service.comm
+              p Try to become a commissioned officer?
+              button(name='commission' value= 'true') Yes
+              button(name='commission' value= false) No
+          else
+            p Please select a service in which to enlist.
+            select#enrollmentSelect(name='enroll')
+              each service in serviceOptions
+                option(
+                  value= service.name
+                  selected= (term && service.name == inService)
+                  class= (term && service.name == inService) ? 'currentService' : 'differentService'
+                  title= service.description
+                  type= 'radio'
+                )= service.name
+              option(value= 'Muster Out') Muster Out
+            button#enrollButton()= inService ? 'Re-Enlist' : 'Submit'
+    else
+      p Select 3 Adolescent Skills
+      form( action=("/character/"+character.id) method="post")
+        select#adskillSelect(name='adskill' multiple='multiple' size=adolescentSkills.length)
+          each skill in adolescentSkills
+            option(value= skill.name)= skill.name
+        button(disabled) Submit
+
+  script.
+    $(document).ready( function() {
+        $('#adskillSelect').change( function() {
+            if( 3 == $('#adskillSelect option:selected').length)
+                $('button').removeAttr('disabled');
+            else
+                $('button').attr('disabled','disabled');
+        });
+
+        $('#tskillSelect').change( function() {
+            if( $('#tskillSelect option:selected').length)
+                $('button').removeAttr('disabled');
+            else
+                $('button').attr('disabled','disabled');
+        });
+
+        $('#enrollmentSelect').change( function() {
+            var s = $('#enrollmentSelect option:selected');
+            if( s && s.length) {
+                $('#enrollButton').removeAttr('disabled');
+                $('#enrollButton').text(s.hasClass('currentService') ? 'Re-Enlist' : 'Submit');
+            } else {
+                $('#enrollButton').attr('disabled','disabled');
+                $('#enrollButton').text('Submit');
+            }
+        });
+        
+        $('button').attr('form',$('form:first').attr('id'));
+    });
