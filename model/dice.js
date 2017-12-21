@@ -7,9 +7,9 @@ exports.rollDice = function( numDice, sizeDice) {
     var result = 0;
     
     while( numDice--) {
-        var roll = Math.random() * sizeDice + 1;
-        console.log(roll);
-        result += Math.floor(roll);
+        var roll = Math.floor(Math.random() * sizeDice + 1);
+        console.log('die roll: ' + roll);
+        result += roll;
     }
     
     return result;

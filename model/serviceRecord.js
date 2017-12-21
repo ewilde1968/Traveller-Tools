@@ -8,28 +8,13 @@ var mongoose = require('mongoose'),
     Service = require('./service'),
     Dice = require('./dice');
 
-var serviceValidator = function (val) {
-    return Service.initialServices.find((e) => e.name == val);
-};
-
-var statValidator = function (val) {
-    if( val) {
-        if( Stat.statNames.indexOf(val) == -1) {
-            return (val instanceof Stat.Statistic.prototype.schema);
-        } else {
-            // if a string, this skill must have a parent
-            // note that this will not be true for the default skill/stat tables
-            return this.parent;
-        }
-    
-        return true;
-    }
-    
-    return true;
+var nameValidator = function (val) {
+    var result = Service.findService(val);
+    return (result != null) ? val : false;
 };
 
 var ServiceRecordSchema = new Schema( {
-    service:        { type:Schema.Types.Mixed, required:true, validate: serviceValidator },
+    name:           { type:String, required:true, validate:nameValidator},
     rank:           { type:Number, index:false },   // undefined means not yet gone to boot camp
     commissioned:   { type:Boolean, index:false },  // undefined means hasn't yet tried for commission
     benefit:        { type:Boolean, index:false },  // undefined means not yet done event
@@ -42,14 +27,17 @@ var ServiceRecordSchema = new Schema( {
 ServiceRecordSchema.statics.newServiceRecord = function (initVal, cb) {
     var s = new ServiceRecord(initVal);
 
-    if( !s.service) {
-        s.service = Service.initialServices.find(function(e) {var temp = initVal.name.localeCompare( e.name);return temp == 0;});
-        if( !s.service)
-            throw 'bad service enlistment'
-    }
-
     if(cb) cb(s);
 };
+
+ServiceRecordSchema.virtual('title').get( function() {
+    var base = Service.findService(this.name,true),
+        assignment = Service.findService(this.name),
+        titleTable = (assignment && assignment.title) ? assignment.title :
+            this.commissioned ? base.title.officer : base.title.enlisted;
+    
+    return titleTable[this.rank]
+});
 
 ServiceRecordSchema.methods.addSkill = function(newSkill) {
     this.skills.push(newSkill);
@@ -58,52 +46,61 @@ ServiceRecordSchema.methods.addSkill = function(newSkill) {
 ServiceRecordSchema.methods.attemptSurvival = function(stats, rollLimit) {
     var roll = Dice.rollDice(2,6),
         term = this,
-        stat = stats.find((e) => term.service.survival.stat.localeCompare(e.name) == 0);
+        service = Service.findService(term.name),
+        stat = stats.find((e) => service.survival.stat.match(e.name));
 
-    if( roll + stat.modifier < term.service.survival.difficulty) {
+    if( roll + stat.modifier < service.survival.difficulty) {
         // failed to survive, TODO roll mishap
-        console.log("MISHAP");
+        console.log("MISHAP" + service.survival.difficulty);
         term.musterOut();
     } else if( roll < rollLimit) {
-        console.log('forced retirement');
+        console.log('forced retirement' + service.survival.difficulty);
         term.musterOut();   // forced retirement
     }
+    
+    console.log('survived');
 };
 
 ServiceRecordSchema.methods.attemptCommission = function(stats) {
     var roll = Dice.rollDice(2,6),
         term = this,
-        stat = stats.find((e) => term.service.comm.stat.localeCompare(e.name) == 0);
+        baseService = Service.findService(term.name,true);
     
-    if( this.commissioned)
-        return; // already commissioned
+    if( this.commissioned || !baseService.commission)
+        return; // already commissioned or no commission possible
     
-    if( roll + stat.modifier >= term.service.comm.difficulty) {
-        console.log('received commission');
+    var stat = stats.find((e) => baseService.commission.stat.match(e.name));
+    if( roll + stat.modifier >= baseService.commission.difficulty) {
+        console.log('received commission') + baseService.commission.difficulty;
         term.commissioned = true;
         term.promoted = true;
-        term.rank = 0;
-    } else
+        term.rank = 1;
+    } else {
+        console.log('failed commission' + baseService.commission.difficulty)
         term.commissioned = false;
+    }
 };
 
 ServiceRecordSchema.methods.attemptPromotion = function(stats) {
     var roll = Dice.rollDice(2,6),
         term = this,
-        stat = stats.find((e) => term.service.promotion.stat.localeCompare(e.name) == 0);
+        service = Service.findService(term.name);
     
-    if( this.promoted)
-        return; // already promoted
+    if( this.promoted || !service.advancement)
+        return; // already promoted or no promotion possible
     
-    if( roll + stat.modifier >= term.service.promotion.difficulty) {
-        console.log('received promotion');
+    if( term.rank == undefined)
+        term.rank = 0;  // make sure it is defined, semaphore for completing term
+
+    var stat = stats.find((e) => service.advancement.stat.match(e.name));
+    if( roll + stat.modifier >= service.advancement.difficulty) {
+        console.log('received promotion' + service.advancement.difficulty);
         term.promoted = true;
-        if( term.rank == undefined)
-            term.rank = 0;
-        else
-            term.rank++;
-    } else
+        term.rank++;
+    } else {
+        console.log('failed promotion' + service.advancement.difficulty);
         term.promoted = false;
+    }
 };
 
 ServiceRecordSchema.methods.musterOut = function() {
@@ -113,14 +110,20 @@ ServiceRecordSchema.methods.musterOut = function() {
 };
 
 ServiceRecordSchema.methods.chooseSkill = function(table) {
-    var t = (table.localeCompare('Personal Development') == 0) ? this.service.personal :
-    'Higher Education' == table ? this.service.higherEd :
-    'Officer' == table ? this.service.officer :
-    'Service Skills' == table ? this.service.service :
-    this.service.specialist;
+    var service = Service.findService(this.name),
+        baseService = Service.findService(this.name,true),
+        t = table.match('Personal Development') ? baseService.personal :
+            table.match('Higher Education') ? baseService.higherEd :
+            table.match('Officer') ? baseService.officer :
+            table.match('Service Skills') ? baseService.service :
+            service.skills;
     
-    return t[Dice.rollDice(1,t.length) - 1];
+    return t ? t[Dice.rollDice(1,t.length) - 1] : null;
 }
+
+ServiceRecordSchema.methods.isMatch = function(str) {
+    
+};
 
 var ServiceRecord = mongoose.model('ServiceRecord', ServiceRecordSchema);
 module.exports = ServiceRecord;

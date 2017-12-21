@@ -60,7 +60,7 @@ StatisticSchema.statics.SOCIAL = SOCIAL;
 StatisticSchema.statics.PSIONICS = PSIONICS;
 StatisticSchema.statics.SENTINEL = SENTINEL;
 
-StatisticSchema.statics.statNames = ['Strength','Dexterity','Endurance','Intelligence','Education','Social Status', 'Psionics'];
+StatisticSchema.statics.statNames = statNames;
 
 var Statistic = mongoose.model('Statistic', StatisticSchema);
 module.exports = Statistic;

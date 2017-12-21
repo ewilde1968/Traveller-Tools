@@ -8,6 +8,7 @@ var mongoose = require('mongoose'),
     ObjectId = Schema.ObjectId,
     Stat = require('./stat'),
     Skill = require('./skill'),
+    Service = require('./service'),
     ServiceRecord = require('./serviceRecord'),
     Dice = require('./dice');
 
@@ -84,22 +85,20 @@ CharacterSchema.methods.addSkill = function( skillz) {
         skillz.forEach((val) => this.addSkill(val));
         return;
     } else if( typeof skillz === 'string' && skillz.length > 0) {
-        var foundOne = false;
-
-        // search the array and find the matching string
-        a.forEach( function(val) {
-            if( val && val.name === skillz) {
-                val.rank++;
-                foundOne = true;
+        var found = a.find((e) => e.isMatch(skillz));
+        if( found) {
+            found.increaseRank(skillz);
+            this.markModified('skills');
+        } else {
+            var stat = this.stats.find((e) => e.name.match(skillz));
+            if( stat) {
+                stat.value++;
+                this.markModified('stats');
+            } else {
+                Skill.newSkill( {name:skillz, rank:0 }, (s) => a.push(s));
+                this.markModified('skills');
             }
-        });
-
-        if( !foundOne)
-            Skill.newSkill( {name:skillz, rank:0 }, (s) => a.push(s));
-
-        // mark modified so saved
-        this.markModified('skills');
-        
+        }
         return;
     } else if( typeof skillz === 'object' && skillz != null) {
         // is it a valid object?
@@ -110,20 +109,19 @@ CharacterSchema.methods.addSkill = function( skillz) {
                        function (s) {
             a.push(s);this.markModified('skills');
         });
-        return;
+return;
     }
     
     throw 'CharacterSchema.methods.addSkill';
 };
 
 CharacterSchema.methods.attemptPromotion = function( attemptCommission) {
-    var term = this.enrolled[0],
-        c = this;
+    var term = this.enrolled[0];
 
     if(attemptCommission)
-        term.attemptCommission(c.stats);
+        term.attemptCommission(this.stats);
 
-    term.attemptPromotion(c.stats);
+    term.attemptPromotion(this.stats);
     if( !term.promoted)
         term.completed = true;
     
@@ -148,7 +146,7 @@ CharacterSchema.methods.carryOutTerm = function( skillTable) {
         term.attemptSurvival(c.stats, c.enrolled.length); 
 
         // commission or promotion from UI
-        if( !term.completed && term.commissioned)
+        if( !term.completed && (term.commissioned || !Service.findService(term.name,true).commission))
             c.attemptPromotion(false);
 
         // event TODO
@@ -167,8 +165,9 @@ CharacterSchema.methods.addServiceTerm = function(sr) {
     
     // basic training or skill
     if(sr && sr.rank == undefined) {
-        // basic training, add all skills at zero if not already owned
-        sr.service.service.forEach( function(skName) {
+        // basic training, add all service skills at zero if not already owned
+        var bServ = Service.findService(sr.name,true);  // get base service
+        bServ.service.forEach( function(skName) {
             if( !c.skills.find( (csk) => csk.name == skName)) {
                 // add skill to character and service record
                 c.addSkill(skName);
@@ -186,26 +185,37 @@ CharacterSchema.methods.addServiceTerm = function(sr) {
 CharacterSchema.methods.attemptServiceTerm = function( serviceName) {
     if( !this.enrolled)
         this.enrolled = new Array();
+    
     var c = this,
         term = this.enrolled[0],    // may be undefined or null
-        sameService = term && !term.musteredOut && serviceName === term.service.name;
+        service = Service.findService(serviceName),
+        sameService = term && !term.musteredOut && service == Service.findService(term.name),
+        initVal = {name:serviceName,musteredOut:false,completed:false};
 
-    ServiceRecord.newServiceRecord({name:serviceName,musteredOut:false,completed:false}, function(sr) {
-        // see if qualified
-        var q = sr.service.qualification;
-
-        if(sameService) {   // re-enlisted
-            console.log('reenlisting');
-            sr.rank = term.rank ? term.rank : 0;    // may be not undefined
-            sr.commissioned = term.commissioned ? term.commissioned : undefined;
-            c.addServiceTerm( sr);
-        } else if(!q || (Dice.rollDice(2,6) + c.stats.find((e) => q.stat.localeCompare(e.name) == 0).modifier) >= q.difficulty) {
-            // made qualification roll
-            c.addServiceTerm( sr);
-        } else {
-            // not qualified, fall back to unenlisted state
-            if( term == undefined && (c.enrolled.length > 0))
-                c.addServiceTerm(undefined);    // TODO provide feedback to user
+    ServiceRecord.newServiceRecord(
+        {
+            name:           serviceName,
+            musteredOut:    false,
+            completed:      false
+        }, function(sr) {
+            // see if qualified
+            var q = service.qualification;
+            
+            // TODO special qualifications like age for marines or soc status for nobles
+            if(sameService) {   // re-enlisted
+                if(term.rank || 0 === term.rank)
+                    sr.rank = term.rank;
+                if(term.commissioned)
+                    sr.commissioned = term.commissioned;
+                c.addServiceTerm( sr);
+            } else if(!q ||   // no qualifications required
+               (Dice.rollDice(2,6) + c.stats.find((e) => q.stat.match(e.name)).modifier) >= q.difficulty) {
+                c.addServiceTerm( sr);
+            } else {
+                // not qualified, fall back to unenlisted state
+                // check to see if same service but different assignment
+//                if( term == undefined && (c.enrolled.length > 0))
+  //                  ;//c.addServiceTerm(null);    // TODO provide feedback to user
         }
     });
 };

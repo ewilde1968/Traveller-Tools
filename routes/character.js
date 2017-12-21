@@ -14,13 +14,23 @@ exports.list = function(req, res){
 
 var renderCharacter = function(res, req, ch) {
     console.log("Render Character");
+    console.log(ch);
+    var term = ch.enrolled ? ch.enrolled[0] : null,
+        service = term ? Service.findService(term.name) : null,
+        baseService = term ? Service.findService(term.name,true) : null,
+        titles = !baseService ? null : (service.title ? service.title
+            : term.commissioned ? baseService.title.officer : baseService.title.enlisted);
 
     // ready for rendering. often a lean copy will be passed in
     if (ch)
         res.send( req.app.locals.viewCallbacks.character({
-            character:ch,
-            adolescentSkills:Skill.adolescentSkills,
-            serviceOptions:Service.initialServices
+            character:          ch,
+            adolescentSkills:   Skill.adolescentSkills,
+            serviceOptions:     Service.initialServices,
+            term:               term,
+            service:            service,
+            baseService:        baseService,
+            titles:             titles
         }));
 }
 
