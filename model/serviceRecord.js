@@ -31,13 +31,24 @@ ServiceRecordSchema.statics.newServiceRecord = function (initVal, cb) {
 };
 
 ServiceRecordSchema.virtual('title').get( function() {
-    var base = Service.findService(this.name,true),
-        assignment = Service.findService(this.name),
-        titleTable = (assignment && assignment.title) ? assignment.title :
-            this.commissioned ? base.title.officer : base.title.enlisted;
-    
-    return titleTable[this.rank]
+    base = Service.findService(this.name,true);
+
+    if(base) {
+        var assignment = Service.findService(this.name),
+            titles = assignment.title ? assignment.title :
+                (this.commissioned ? base.title.officer : base.title.enlisted);
+
+        if(titles)
+            return this.rank ? (titles[this.rank - (this.commissioned?1:0)].name) : 'Enlistee';
+    }
+
+    // no titles or no service
+    return '';
 });
+
+ServiceRecordSchema.virtual('title').get( function() {
+});
+
 
 ServiceRecordSchema.methods.addSkill = function(newSkill) {
     this.skills.push(newSkill);
@@ -103,6 +114,12 @@ ServiceRecordSchema.methods.attemptPromotion = function(stats) {
     }
 };
 
+ServiceRecordSchema.methods.complete = function(ch) {
+    this.completed = true;
+    if(ch && ch.age)
+        ch.age += 4;
+};
+
 ServiceRecordSchema.methods.musterOut = function() {
     console.log('MUSTERED OUT');
     this.completed = true;
@@ -118,11 +135,13 @@ ServiceRecordSchema.methods.chooseSkill = function(table) {
             table.match('Service Skills') ? baseService.service :
             service.skills;
     
-    return t ? t[Dice.rollDice(1,t.length) - 1] : null;
+    var result = t ? t[Dice.rollDice(1,t.length) - 1] : null;
+    console.log( 'skill choice: ' + result);
+    return result;
 }
 
 ServiceRecordSchema.methods.isMatch = function(str) {
-    
+    return (str.match(this.name) != null);
 };
 
 var ServiceRecord = mongoose.model('ServiceRecord', ServiceRecordSchema);

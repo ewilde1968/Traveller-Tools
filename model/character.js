@@ -33,6 +33,9 @@ CharacterSchema.statics.newCharacter = function( initVal, cb) {
         
     if( !ch.skills)
         ch.skills = new Array(0);   // now create an zero length skills array
+    
+    if( !ch.age)
+        ch.age = 18;
 
     ch.save( (err) => {if(cb) cb(err, ch);});   // save changes
 };
@@ -123,7 +126,7 @@ CharacterSchema.methods.attemptPromotion = function( attemptCommission) {
 
     term.attemptPromotion(this.stats);
     if( !term.promoted)
-        term.completed = true;
+        term.complete(this);
     
     this.markModified('enrolled');
 };
@@ -151,11 +154,19 @@ CharacterSchema.methods.carryOutTerm = function( skillTable) {
 
         // event TODO
     } else  // already promoted this term
-        term.completed = true;
+        term.complete(this);
     
     // make sure changes are saved
     this.markModified('enrolled');
 };
+
+CharacterSchema.virtual('title').get( function() {
+    if( this.enrolled && this.enrolled.length > 0)
+        return this.enrolled[0].title;
+    
+    // never been in any service
+    return 'Youth';
+});
 
 CharacterSchema.methods.addServiceTerm = function(sr) {
     // already accepted into service

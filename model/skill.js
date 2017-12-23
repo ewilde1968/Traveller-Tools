@@ -337,8 +337,6 @@ SkillSchema.methods.isMatch = function(skillStr) {
 };
 
 var incrementRootRank = function(sk) {
-    console.log('incrementRank');
-    console.log(sk);
     if( sk.rank && sk.specialty && (sk.specialty.length > 0)) {
         // TODO
         // pop a dialog to get specialty choice
@@ -346,18 +344,28 @@ var incrementRootRank = function(sk) {
     }
     
     sk.rank = (sk.rank || 0 == sk.rank) ? sk.rank+1 : 0;
-    console.log('rank: ' + sk.rank);
+    console.log('increment root rank: ' + sk.name);
+    console.log('  new rank: ' + sk.rank);
 };
 
 var incrementSpecialtyRank = function(sk,specialty) {
     var s = sk.specialty.find((e) => e.name.match(specialty));
-    console.log(sk);
-    console.log(specialty);
     if(s) {
         s.rank = s.rank ? s.rank++ : 1;
-        sk.rank = 0;  // root skill with specialty is always zero or non-ranked
-    } else
-        throw 'bad specialty';
+    } else {
+        // this specialty is not yet a part of the skill
+        // make one at rank 0
+        if(!sk.specialty)
+            sk.specialty = new Array();
+        s = Object.assign(new Object(), {name:specialty,rank:1});
+        sk.specialty.push(s);
+    }
+
+    // root skill with specialty is decremented
+    // zero means specialties chosen
+    sk.rank = (sk.rank > 0) ? sk.rank-- : 0;
+    console.log('increment specialty rank: ' + sk.name + ' (' + specialty + ')');
+    console.log('  new rank: ' + s.rank);
 };
 
 SkillSchema.methods.increaseRank = function(skillStr) {
@@ -388,6 +396,10 @@ SkillSchema.methods.increaseRank = function(skillStr) {
         } else
             throw 'bad skill';
     }
+};
+
+SkillSchema.method.needsSpecialty = function () {
+    return (this.rank > 0 && this.specialty && this.specialty.length > 0);
 };
 
 SkillSchema.statics.adolescentSkills = [

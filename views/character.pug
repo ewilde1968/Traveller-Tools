@@ -5,13 +5,18 @@ block content
     table
       tr
         th Name
-        td character.name
+        td= character.name
       tr
         th Title
-        td character.title
+        td= title
       tr
         th Age
-        td character.age
+        td= character.age
+    if service
+      if term.rank == undefined
+        p= 'Recently enlisted in the ' + baseService.name + ' service.'
+      else
+        p= 'Currently serving as a ' + title + ' in the ' + baseService.name + ' service.'
   div#characterStats
     table
       tr
@@ -24,46 +29,50 @@ block content
               th= stat.name
               td= stat.value
               td= stat.modifier
-  div#characterSkills
-    if character.skills && character.skills.length > 0
-      table
-        tr
-          th Skill
-          th Stat
-          th Rank
-        each skill in character.skills
+    if action != 'adolescent'
+      div#characterSkills
+        table
           tr
-            th= skill.name
-            td= skill.stat ? skill.stat.name : ''
-            td= skill.rank
-      div#enrollment
-        form( action=('/character/'+character.id) method='post')
-          if service
-            if term.rank == undefined
-              p= 'Recently enlisted in the ' + baseService.name + ' service.'
+            th Skill
+            th Rank
+          each skill in character.skills
+            if skill.specialty && skill.specialty.length > 0
+              tr
+                th= skill.name
+                td= skill.rank
+              each skSp in skill.specialty
+                tr
+                  th= '  ' + skSp.name
+                  td= skSp.rank
             else
-              p= 'Currently serving as a ' + titles[term.rank-(term.commissioned?1:0)].name + ' in the ' + baseService.name + ' service.'
-          if service && !term.completed
-            if !term.skills || term.skills.length == 0 || term.promoted
-              p Please choose a skill type.
-              select#tskillSelect(name='termskill')
-                option(value='Personal Development') Personal Development
-                if baseService.higherEd && character.stats.find((e) => e.name.match('Education')).value >= 8
-                  option(value='Higher Education') Higher Education
-                if baseService.officer && term.commissioned
-                  option(value='Officer') Officer
-                option(value='Service Skills') Service Skills
-                if service.skills
-                  option(value= service.name )= service.name
-              button(disabled) Submit
-            else if !term.commissioned && baseService.commission
-              p Try to become a commissioned officer?
-              button(name='commission' value= 'true') Yes
-              button(name='commission' value= false) No
-          else
+              tr
+                th= skill.name
+                td= skill.rank
+  div#enrollment
+    form( action=('/character/'+character.id) method='post')
+      if action == 'adolescent'
+        p Select 3 Adolescent Skills
+        select#adskillSelect(name='adskill' multiple='multiple' size=data.length)
+          each skill in data
+            option(value= skill.name)= skill.name
+        button(disabled) Submit
+      else
+        if action == 'skill'
+          p Please choose a skill type.
+          select#tskillSelect(name='termskill')
+            option(value='Personal Development') Personal Development
+            option(value='Service Skills') Service Skills
+            if baseService.higherEd && character.stats.find((e) => e.name.match('Education')).value >= 8
+              option(value='Higher Education') Higher Education
+            if baseService.officer && term.commissioned
+              option(value='Officer') Officer
+            if service.skills
+              option(value= service.name )= service.name
+          button(disabled) Submit
+        else if action == 'enlist'
             p Please select a service in which to enlist.
             select#enrollmentSelect(name='enroll')
-              each so in serviceOptions
+              each so in data
                 if so.assignment && so.assignment.length > 0
                   optgroup(
                     label= so.name
@@ -72,26 +81,27 @@ block content
                     each a in so.assignment
                       option(
                         value= so.name + ' (' + a.name + ')'
-                        selected= term && service.name.match(a.name)
-                        class= (term && service.name.match(a.name)) ? 'curServ' : 'difServ'
+                        selected= service && a.name.match(service.name)
+                        class= (service && a.name.match(service.name)) ? 'curServ' : 'difServ'
                         title= a.description
                       )= a.name
                 else
                   option(
                     value= so.name
-                    selected= term && service.name.match(so.name)
-                    class= (term && service.name.match(so.name)) ? 'curServ' : 'difServ'
+                    selected= service && so.name.match(service.name)
+                    class= (service && so.name.match(service.name)) ? 'curServ' : 'difServ'
                     title= so.description
                   )= so.name
               option(value= 'Muster Out') Muster Out
             button#enrollButton()= inService ? 'Re-Enlist' : 'Submit'
-    else
-      p Select 3 Adolescent Skills
-      form( action=("/character/"+character.id) method="post")
-        select#adskillSelect(name='adskill' multiple='multiple' size=adolescentSkills.length)
-          each skill in adolescentSkills
-            option(value= skill.name)= skill.name
-        button(disabled) Submit
+        else if action == 'commission'
+          p Try to become a commissioned officer?
+          button(name='commission' value= 'true') Yes
+          button(name='commission' value= false) No
+        else if action == 'specialty'
+          p Choose a skill specialty
+        else
+          p Why the heck did we get here?
 
   script.
     $(document).ready( function() {
