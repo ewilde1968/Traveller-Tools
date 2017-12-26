@@ -12,11 +12,16 @@ block content
       tr
         th Age
         td= character.age
-    if service
-      if term.rank == undefined
-        p= 'Recently enlisted in the ' + baseService.name + ' service.'
-      else
-        p= 'Currently serving as a ' + title + ' in the ' + baseService.name + ' service.'
+    div#status
+      if service
+        if action == 'draft'
+          p= 'Failed to enlist in the ' + baseService.name + ' service.'
+        else if term.musteredOut
+          p= term.musteredOut + ' out of the ' + baseService.name + ' service.'
+        else if term.rank == undefined
+          p= 'Recently enlisted in the ' + baseService.name + ' service.'
+        else
+          p= 'Currently serving as a ' + title + ' in the ' + baseService.name + ' service.'
   div#characterStats
     table
       tr
@@ -48,7 +53,7 @@ block content
               tr
                 th= skill.name
                 td= skill.rank
-  div#enrollment
+  div
     form( action=('/character/'+character.id) method='post')
       if action == 'adolescent'
         p Select 3 Adolescent Skills
@@ -93,13 +98,29 @@ block content
                     title= so.description
                   )= so.name
               option(value= 'Muster Out') Muster Out
-            button#enrollButton()= inService ? 'Re-Enlist' : 'Submit'
+            button#enrollButton()= (term && !term.musteredOut) ? 'Re-Enlist' : 'Submit'
         else if action == 'commission'
           p Try to become a commissioned officer?
           button(name='commission' value= 'true') Yes
           button(name='commission' value= false) No
+        else if action == 'draft'
+          p Choose to be a drifter or sign up for the draft.
+          select#enrollmentSelect(name='enroll')
+            each so in data
+              option(
+                value= so.name
+                class= 'difServ'
+                title= so.description
+                )= so.name
+            option(value= 'Draft') Draft
+            option(value= 'Muster Out') Muster Out
+          button#enrollButton()= 'Submit'
         else if action == 'specialty'
           p Choose a skill specialty
+          select#enrollmentSelect(name='specialty')
+            each sp in data.specialty
+              option(value= sp.name)= sp.name
+          button#enrollButton()= 'Submit'
         else
           p Why the heck did we get here?
 
@@ -123,7 +144,7 @@ block content
             var s = $('#enrollmentSelect option:selected');
             if( s && s.length) {
                 $('#enrollButton').removeAttr('disabled');
-                $('#enrollButton').text(s.hasClass('currentService') ? 'Re-Enlist' : 'Submit');
+                $('#enrollButton').text(s.hasClass('curServ') ? 'Re-Enlist' : 'Submit');
             } else {
                 $('#enrollButton').attr('disabled','disabled');
                 $('#enrollButton').text('Submit');

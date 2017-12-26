@@ -5,7 +5,6 @@
 module.exports = Database;
 
 var mongoose = require('mongoose'),
-    defaultObjects = require('./defaultObjects'),
     DBParams = require('./dbparams');
 
 var db = false;

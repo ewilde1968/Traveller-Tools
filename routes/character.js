@@ -29,6 +29,7 @@ var renderCharacter = function(res, req, ch) {
     **          attempt survival/mishap, then commission/promotion, then event
     **      choose promotion skill table (6)
     **          can result in another choose skill specialty(7)
+    **      choose to enter draft or be a drifter (8)
     **
     **/
     var term = ch.enrolled ? ch.enrolled[0] : null,
@@ -46,25 +47,48 @@ var renderCharacter = function(res, req, ch) {
                 // choose a skill table (3), (6)
                 action = 'skill';
             } else if (baseService.commission && !term.commissioned) {
+                // choose commission or promotion as enlisted (5)
                 action = 'commission';
             } else {
                 // see if we need to choose a specialty (4), (7)
-                obj = term.skill.find((e) => e.needsSpecialty());
-                if(obj)
+                obj = ch.skills.find((e) => e.needsSpecialty());
+                if(obj) {
                     action = 'specialty';
+                }
                 else {
                     // random other event responses go through here as well
                     throw 'unhandled';
                 }
             }
         } else {
-            // choose a service (2)
-            action = 'enlist';
-            obj = Service.initialServices;
+            if(term && term.musteredOut) {
+                if(term.musteredOut.match('Failed enlistment')) {
+                    // draft or drifter (8)
+                    action = 'draft';
+                    obj = [
+                        Service.initialServices.find((e)=>e.name.match('Barbarian')),
+                        Service.initialServices.find((e)=>e.name.match('Wanderer')),
+                        Service.initialServices.find((e)=>e.name.match('Scavenger'))
+                    ];
+                } else {
+                // choose a service (2)
+                    action = 'enlist';
+                    obj = new Array();
+                    Service.initialServices.forEach(function(e) {
+                        // if not a part of the last term, add it
+                        if(!baseService.name.match(e.name))
+                            obj.push(e);
+                    });
+                }
+            } else {
+                // choose a service (2)
+                action = 'enlist';
+                obj = Service.initialServices;
+            }
         }
     }
 
-    console.log("Render Character");
+    console.log("Render Character " + action);
     console.log(ch);
 
     // ready for rendering. often a lean copy will be passed in
@@ -123,7 +147,6 @@ exports.updateCharacter = function(req, res, next) {
             ch.save();
         } else if( req.body.commission) {
             ch.attemptPromotion(req.body.commission);
-            console.log('saving' + ch);
             ch.save();
         }
         
