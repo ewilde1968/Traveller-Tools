@@ -82,16 +82,23 @@ ServiceRecordSchema.methods.attemptEnlist = function(stat, age, history, cb) {
     if(!q)
         result = true;    // no qualifications
     else {
-        if(q.autostat && stat.find((e)=>q.autostat.name.match(e.name).value>q.autostat.value))
+        if(q.autostat && stat.find((e)=>q.autostat.name.includes(e.name).value>q.autostat.value))
             result = true;    // has the right stuff
         else {
             var dm = 0, ppStr = '';
             dm += (q.age && age >= q.age.limit) ? q.age.mod : 0;
-            dm += stat.find((e)=>q.stat.match(e.name)).modifier;
+            dm += stat.find((e)=>q.stat.includes(e.name)).modifier;
     
             if(history)
-                history.forEach((e)=>dm-=(Service.findService(e.name,true).name.match(ppStr))?1:0);
+                history.forEach(function(e) {
+                    console.log(dm);
+                    var psName = Service.findService(e.name,true).name;
+                    console.log(psName + ':' + ppStr);
+                    dm -= ppStr.includes(psName) ? 0 : 1;
+                    ppStr = psName;
+                });
 
+            console.log(dm);
             if((Dice.rollDice(2,6) + dm) >= q.difficulty)
                 result = true;
         }
@@ -111,7 +118,7 @@ ServiceRecordSchema.methods.attemptSurvival = function(stats, rollLimit) {
     var roll = Dice.rollDice(2,6),
         term = this,
         service = Service.findService(term.name),
-        stat = stats.find((e) => service.survival.stat.match(e.name));
+        stat = stats.find((e) => service.survival.stat.includes(e.name));
 
     if( roll + stat.modifier < service.survival.difficulty) {
         // failed to survive, TODO roll mishap
@@ -141,7 +148,7 @@ ServiceRecordSchema.methods.attemptCommission = function(stats,cb) {
     if( this.commissioned || !baseService.commission)
         return; // already commissioned or no commission possible
     
-    var stat = stats.find((e) => baseService.commission.stat.match(e.name));
+    var stat = stats.find((e) => baseService.commission.stat.includes(e.name));
     if( roll + stat.modifier >= baseService.commission.difficulty) {
         console.log('received commission') + baseService.commission.difficulty;
         term.commissioned = true;
@@ -164,7 +171,7 @@ ServiceRecordSchema.methods.attemptPromotion = function(stats,cb) {
     if( term.rank == undefined)
         term.rank = 0;  // make sure it is defined, semaphore for completing term
 
-    var stat = stats.find((e) => service.advancement.stat.match(e.name));
+    var stat = stats.find((e) => service.advancement.stat.includes(e.name));
     if( roll + stat.modifier >= service.advancement.difficulty) {
         console.log('received promotion' + service.advancement.difficulty);
         term.promote(cb);
@@ -189,10 +196,10 @@ ServiceRecordSchema.methods.musterOut = function(str) {
 ServiceRecordSchema.methods.chooseSkill = function(table) {
     var service = Service.findService(this.name),
         base = Service.findService(this.name,true),
-        t = table.match('Personal Development') ? base.personal :
-            table.match('Higher Education') ? base.education.list :
-            table.match('Officer') ? base.officer :
-            table.match('Service Skills') ? base.service :
+        t = table.includes('Personal Development') ? base.personal :
+            table.includes('Higher Education') ? base.education.list :
+            table.includes('Officer') ? base.officer :
+            table.includes('Service Skills') ? base.service :
             service.skills;
     
     var result = t ? t[Dice.rollDice(1,t.length) - 1] : null;
@@ -201,7 +208,7 @@ ServiceRecordSchema.methods.chooseSkill = function(table) {
 }
 
 ServiceRecordSchema.methods.isMatch = function(str) {
-    return (str.match(this.name) != null);
+    return this.name.includes(str);
 };
 
 var ServiceRecord = mongoose.model('ServiceRecord', ServiceRecordSchema);

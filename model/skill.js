@@ -278,7 +278,7 @@ var splitSkillName = function(str) {
 
 var nameValidator = function (val) {
     var skillNames = splitSkillName(val);
-    return initialSkills.find((e) => e.name.match(val));
+    return initialSkills.find((e) => e.name.includes(val));
 };
 
 var rankValidator = function(r) {
@@ -289,7 +289,7 @@ var rankValidator = function(r) {
 var SkillSchema = new Schema( {
     name:       { type:String, index:false, required:true, validate: nameValidator },
     rank:       { type:Number, index:false, validate:rankValidator },
-    specialty:  { type:[SkillSchema], index:false }
+    specialty:  { type:[{name:String, rank:Number}], index:false }
 });
 
 SkillSchema.statics.newSkill = function (initVal, cb) {
@@ -304,13 +304,13 @@ SkillSchema.statics.newSkill = function (initVal, cb) {
         if(cb) cb(new Skill(initVal));
     } else {
         var skillNames = splitSkillName(initVal.name ? initVal.name : initVal),
-            base = initialSkills.find((e) => e.name.match(skillNames[0]));
+            base = initialSkills.find((e) => e.name.includes(skillNames[0]));
     
         if( base) {
             // specialty from a detailed string constructor.
             var newBase = Object.assign({},{specialty:[]},base,{rank:initVal.rank}),
                 specialtyIndex = !skillNames[1] ? -1 :
-                    base.specialty.findIndex((e) => e.name.match(skillNames[1])),
+                    base.specialty.findIndex((e) => e.name.find(skillNames[1])),
                 newSpecialty = (specialtyIndex == -1) ? null :
                     Object.assign({},base.specialty[specialtyIndex],{rank:initVal.rank});
         
@@ -333,13 +333,13 @@ SkillSchema.virtual('modifier').get( function() {
 });
 
 SkillSchema.methods.isMatch = function(skillStr) {
-    return this.name.match(splitSkillName(skillStr)[0]);
+    return this.name.includes(splitSkillName(skillStr)[0]);
 };
 
 SkillSchema.methods.merge = function(obj) {
     // check to see if the skill specialty already exists at equal or higher level
     var mergeSpecialty = function (oSp,r) {
-        var f = r.specialty.find((g) => g.name.match(oSp.name));
+        var f = r.specialty.find((g) => oSp.name.includes(g.name));
         if(f) {
             // found the matching specialty, merge
             if(oSp.rank > f.rank)
@@ -356,8 +356,7 @@ SkillSchema.methods.merge = function(obj) {
     } else {
         // no specialty array in the new skill
         // does the skill name indicate a specialty?
-        console.log(obj);
-        if( obj.name.match(this.name)) {
+        if( this.name.includes(obj.name)) {
             // "root", no specialty
             // merge the root skill
             if(obj.rank > this.rank)
@@ -380,13 +379,13 @@ SkillSchema.methods.increaseRank = function(skillStr) {
     
     var incrementRootRank = function(sk) {
         // the html state machine will show the need to choose a specialty if necessary
-        sk.rank = (sk.rank || 0 == sk.rank) ? sk.rank+1 : 0;
+        sk.rank = (sk.rank || 0 == sk.rank) ? (sk.rank+1) : 0;
     };
 
     var incrementSpecialtyRank = function(sk,specialty) {
-        var s = sk.specialty.find((e) => e.name.match(specialty));
+        var s = sk.specialty.find((e) => e.name.includes(specialty));
         if(s) {
-            s.rank = s.rank ? s.rank++ : 1;
+            s.rank = s.rank ? (s.rank + 1) : 1;
         } else {
             // this specialty is not yet a part of the skill
             // make one at rank 0
@@ -398,13 +397,11 @@ SkillSchema.methods.increaseRank = function(skillStr) {
 
         // root skill with specialty is decremented
         // zero means specialties chosen
-        sk.rank = (sk.rank > 0) ? sk.rank-- : 0;
-        console.log('increment specialty rank: ' + sk.name + ' (' + specialty + ')');
-        console.log('  new rank: ' + s.rank);
+        sk.rank = (sk.rank > 0) ? (sk.rank - 1) : 0;
     };
 
     if( !skillStr || skillStr.length == 0) {
-        // empty input, increment root rank or pop dialog
+        // empty input, increment root rank
         incrementRootRank(this);
     } else {
         // its a string of some kind
@@ -423,9 +420,14 @@ SkillSchema.methods.increaseRank = function(skillStr) {
     }
 };
 
-SkillSchema.method.needsSpecialty = function () {
-    var original = initialSkills.find((e) => e.name.match(this.name));
-    return (this.rank > 0 && original.specialty && original.specialty.length > 0);
+SkillSchema.statics.needsSpecialty = function (sr) {
+    if(sr) {
+        var original = initialSkills.find((e) => e.name.includes(sr.name));
+        if (sr.rank > 0 && original.specialty && original.specialty.length > 0)
+            return true;
+    }
+    
+    return false;
 };
 
 SkillSchema.statics.adolescentSkills = [

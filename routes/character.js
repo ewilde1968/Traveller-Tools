@@ -50,25 +50,23 @@ var renderCharacter = function(res, req, ch) {
                 // choose commission or promotion as enlisted (5)
                 action = 'commission';
             } else {
-                // see if we need to choose a specialty (4), (7)
-                obj = ch.skills.find((e) => e.needsSpecialty());
-                if(obj) {
-                    action = 'specialty';
-                }
-                else {
-                    // random other event responses go through here as well
-                    throw 'unhandled';
-                }
+                // random other event responses go through here as well
+                throw 'unhandled';
             }
         } else {
-            if(term && term.musteredOut) {
-                if(term.musteredOut.match('Failed enlistment')) {
+            // see if we need to choose a specialty (4), (7)
+            obj = ch.skills.find((e) => Skill.needsSpecialty(e));
+            if(obj) {
+                action = 'specialty';
+                obj = Skill.initialSkills.find((e) => e.name.includes(obj.name));  // original skill
+            } else if(term && term.musteredOut) {
+                if(term.musteredOut.includes('Failed enlistment')) {
                     // draft or drifter (8)
                     action = 'draft';
                     obj = [
-                        Service.initialServices.find((e)=>e.name.match('Barbarian')),
-                        Service.initialServices.find((e)=>e.name.match('Wanderer')),
-                        Service.initialServices.find((e)=>e.name.match('Scavenger'))
+                        Service.initialServices.find((e)=>e.name.includes('Barbarian')),
+                        Service.initialServices.find((e)=>e.name.includes('Wanderer')),
+                        Service.initialServices.find((e)=>e.name.includes('Scavenger'))
                     ];
                 } else {
                 // choose a service (2)
@@ -76,7 +74,7 @@ var renderCharacter = function(res, req, ch) {
                     obj = new Array();
                     Service.initialServices.forEach(function(e) {
                         // if not a part of the last term, add it
-                        if(!baseService.name.match(e.name))
+                        if(!baseService.name.includes(e.name))
                             obj.push(e);
                     });
                 }
@@ -130,25 +128,22 @@ exports.updateCharacter = function(req, res, next) {
         
         if (err) return next(err);
 
-        if( req.body.adskill && 0 == ch.skills.length) {
-            // adding adolescent skills to character
-            ch.addSkill( req.body.adskill);
-            ch.save();
-        } else if( req.body.enroll) {
+        if( req.body.adskill && 0 == ch.skills.length)
+            ch.addSkill( req.body.adskill); // adding adolescent skills to character
+        else if( req.body.enroll)
             if( 'Muster Out' == req.body.enroll) {
                 ch.musterOut();
             } else {
                 // enrolling in a service
                 ch.attemptServiceTerm( req.body.enroll);
             }
-            ch.save();
-        } else if( req.body.termskill) {
+        else if( req.body.termskill)
             ch.carryOutTerm(req.body.termskill);
-            ch.save();
-        } else if( req.body.commission) {
+        else if( req.body.commission)
             ch.attemptPromotion(req.body.commission);
-            ch.save();
-        }
+        else if( req.body.specialty)
+            ch.addSkill(req.body.specialty);
+        ch.save();
         
         // render the character display with prompts for next update, or finished
         renderCharacter(res, req, ch);

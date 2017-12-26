@@ -46,9 +46,10 @@ block content
                 th= skill.name
                 td= skill.rank
               each skSp in skill.specialty
-                tr
-                  th= '  ' + skSp.name
-                  td= skSp.rank
+                if skSp.rank >= 0
+                  tr
+                    th= '  (' + skSp.name + ')'
+                    td= skSp.rank
             else
               tr
                 th= skill.name
@@ -119,7 +120,7 @@ block content
           p Choose a skill specialty
           select#enrollmentSelect(name='specialty')
             each sp in data.specialty
-              option(value= sp.name)= sp.name
+              option(value= (data.name + ' (' + sp.name + ')'))= sp.name
           button#enrollButton()= 'Submit'
         else
           p Why the heck did we get here?

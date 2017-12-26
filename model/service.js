@@ -637,10 +637,10 @@ var splitServiceName = function(str) {
 
 module.exports.findService = function(str,findBase) {
     var serviceNames = splitServiceName(str),
-        base = initialCoreServices.find((e) => e.name.match(serviceNames[0]));
+        base = initialCoreServices.find((e) => e.name.includes(serviceNames[0]));
     
     if(!findBase && base && base.assignment && serviceNames[1]) {
-        var sp = base.assignment.find((e) => serviceNames[1].match(e.name));
+        var sp = base.assignment.find((e) => serviceNames[1].includes(e.name));
         return sp;
     }
 

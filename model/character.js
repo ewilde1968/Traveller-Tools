@@ -93,7 +93,7 @@ CharacterSchema.methods.addSkill = function( skillz) {
             found.increaseRank(skillz);
             c.markModified('skills');
         } else {
-            var stat = c.stats.find((e) => e.name.match(skillz));
+            var stat = c.stats.find((e) => skillz.includes(e.name));
             if( stat) {
                 stat.value++;
                 c.markModified('stats');
@@ -193,7 +193,7 @@ CharacterSchema.methods.addServiceTerm = function(sr) {
                 // basic training, add all service skills at zero if not already owned
                 var bServ = Service.findService(sr.name,true);  // get base service
                 bServ.service.forEach( function(skName) {
-                    if( !c.skills.find((csk)=>skName.match(csk.name))) {
+                    if( !c.skills.find((csk)=>csk.name.includes(skName.name))) {
                         // add skill to character and service record
                         c.addSkill(skName);
                         sr.addSkill(skName);
@@ -212,7 +212,9 @@ CharacterSchema.methods.addServiceTerm = function(sr) {
 CharacterSchema.methods.reEnlist = function() {
     var c = this,
         term = c.enrolled ? c.enrolled[0] : null;
-    
+
+    console.log('re-enlisting');
+
     if(term && !term.musteredOut) {
         ServiceRecord.newServiceRecord(Object.assign({},{
             name:           term.name,
@@ -234,22 +236,29 @@ CharacterSchema.methods.attemptServiceTerm = function( serviceName) {
     var c = this,
         term = this.enrolled[0],    // may be undefined or null
         service = Service.findService(serviceName),
-        sameService = term && !term.musteredOut && service == Service.findService(term.name),
-        initVal = {name:serviceName,musteredOut:false,completed:false};
-
+        sameAssignment = term && !term.musteredOut && service == Service.findService(term.name),
+        sameService = term && !term.musteredOut && term.name.includes(Service.findService(serviceName, true));
+    
     ServiceRecord.newServiceRecord(
         {
             name:           serviceName,
             completed:      false
         }, function(sr) {
-            if(sameService)
+            if(sameAssignment)
                 c.reEnlist();
             else if( sr.attemptEnlist(c.stats, c.age, c.enrolled, function(e) {
+                    // this callback is called when enlistment results in a bonus
                     if(e)
                         c.addSkill(e);
-            }))
+            })) {
+                // successfully enlisted
+                // if this is a new assignment in same service, copy rank
+                if(sameService) {
+                    sr.commissioned = term.commissioned;
+                    sr.rank = term.rank;
+                }
                 c.addServiceTerm(sr);
-            else if(term && Service.findService(serviceName,true).match(term.name))
+            } else if(sameService)
                 // refused new assignment in same service, re-enlist in same assignment
                 c.reEnlist();   // do this after attempting to qualify
             else {
